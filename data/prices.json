@@ -1,6 +1,80 @@
 {
-  "updated_at": null,
-  "note": "VPS 수집기 연결 전 초기 파일. 3단계에서 실제 시세로 대체됩니다.",
-  "quotes": {},
-  "fx": {}
+  "updated_at": "2026-09-09 04:34 KST",
+  "quotes": {
+    "JP:2563": {
+      "close": 405.7,
+      "date": "2026-09-08",
+      "currency": "JPY",
+      "name": "BRJ iShares S&P 500 JPY Hedged ETF",
+      "stale_days": 0
+    },
+    "KR:000720": {
+      "close": 131400.0,
+      "date": "2026-09-08",
+      "currency": "KRW",
+      "name": "현대건설",
+      "stale_days": 0
+    },
+    "KR:005930": {
+      "close": 269500.0,
+      "date": "2026-09-08",
+      "currency": "KRW",
+      "name": "삼성전자",
+      "stale_days": 0
+    },
+    "KR:133690": {
+      "close": 176020.0,
+      "date": "2026-09-08",
+      "currency": "KRW",
+      "name": "TIGER 미국나스닥100",
+      "stale_days": 0
+    },
+    "US:AMZN": {
+      "close": 256.91,
+      "date": "2026-09-08",
+      "currency": "USD",
+      "name": "Amazon.com Inc",
+      "stale_days": 0
+    },
+    "US:MSFT": {
+      "close": 493.85,
+      "date": "2026-09-08",
+      "currency": "USD",
+      "name": "Microsoft Corporation",
+      "stale_days": 0
+    },
+    "US:NVDA": {
+      "close": 225.85,
+      "date": "2026-09-08",
+      "currency": "USD",
+      "name": "NVIDIA Corporation",
+      "stale_days": 0
+    },
+    "US:QQQM": {
+      "close": 296.03,
+      "date": "2026-09-08",
+      "currency": "USD",
+      "name": "Invesco NASDAQ 100 ETF",
+      "stale_days": 0
+    },
+    "US:TSLA": {
+      "close": 368.0,
+      "date": "2026-09-08",
+      "currency": "USD",
+      "name": "Tesla Inc",
+      "stale_days": 0
+    }
+  },
+  "fx": {
+    "JPYKRW": {
+      "rate": 8.7151,
+      "date": "2026-09-09",
+      "quote_unit": 100
+    },
+    "USDKRW": {
+      "rate": 1341.6,
+      "date": "2026-09-09",
+      "quote_unit": 1
+    }
+  }
 }
