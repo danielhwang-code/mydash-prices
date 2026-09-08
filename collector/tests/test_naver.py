@@ -8,7 +8,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from sources.naver import parse_domestic, parse_overseas, parse_fx, QuoteNotFound
+from sources.naver import (parse_domestic, parse_overseas, parse_fx,
+                          parse_price_history, parse_fx_history, QuoteNotFound)
 
 FIX = pathlib.Path(__file__).parent / "fixtures"
 
@@ -69,3 +70,29 @@ class TestFx(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestHistory(unittest.TestCase):
+    def test_국내_일봉을_날짜_종가로_읽는다(self):
+        rows = parse_price_history(load("hist_domestic_005930.json"))
+        self.assertTrue(len(rows) > 10)
+        self.assertEqual(rows[0]["date"], "2026-08-03")
+        self.assertEqual(rows[0]["close"], 239500.0)
+        self.assertTrue(all(r["date"] < r2["date"] for r, r2 in zip(rows, rows[1:])),
+                        "날짜 오름차순이어야 차트가 뒤집히지 않는다")
+
+    def test_해외_일봉도_같은_구조로_읽는다(self):
+        rows = parse_price_history(load("hist_foreign_QQQM.json"))
+        self.assertEqual(rows[0]["date"], "2026-08-03")
+        self.assertAlmostEqual(rows[0]["close"], 288.27)
+
+    def test_환율_이력은_고시단위로_나눠야_현재가와_이어진다(self):
+        # 이력 응답에는 단위 표시가 없다. 현재 시세에서 확인한 단위를 그대로 적용한다.
+        # 100으로 안 나누면 차트가 100배 계단으로 튄다.
+        rows = parse_fx_history(load("hist_fx_jpykrw.json"), quote_unit=100)
+        self.assertEqual(rows[-1]["date"], "2026-09-08")
+        self.assertAlmostEqual(rows[-1]["rate"], 8.7117)
+
+    def test_달러_이력은_콤마를_떼고_그대로_쓴다(self):
+        rows = parse_fx_history(load("hist_fx_usdkrw.json"), quote_unit=1)
+        self.assertAlmostEqual(rows[-1]["rate"], 1341.40)

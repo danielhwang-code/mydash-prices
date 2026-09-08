@@ -71,3 +71,38 @@ def parse_fx(payload):
         "date": _date_of(info) or None,
         "source": (info.get("stockExchangeType") or {}).get("nameKor"),
     }
+
+
+def parse_price_history(payload):
+    """일봉 응답 → [{date, close}] 오름차순.
+
+    국내 chart/domestic/item/{code}/day, 해외 chart/foreign/item/{code}.{X}/day
+    둘 다 같은 모양으로 온다.
+    """
+    rows = payload if isinstance(payload, list) else payload.get("result") or []
+    out = []
+    for r in rows:
+        raw = r.get("localDate") or ""
+        if len(raw) != 8 or "closePrice" not in r:
+            continue
+        out.append({
+            "date": f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}",
+            "close": _to_number(r["closePrice"]),
+        })
+    return sorted(out, key=lambda x: x["date"])
+
+
+def parse_fx_history(payload, quote_unit=1):
+    """환율 이력 응답 → [{date, rate}] 오름차순.
+
+    이력 응답에는 고시 단위 표시가 없다. 현재 시세(parse_fx)에서 확인한
+    quote_unit 을 반드시 넘겨야 한다 — 엔화를 100으로 안 나누면 차트가 100배 튄다.
+    """
+    rows = payload if isinstance(payload, list) else payload.get("result") or []
+    out = []
+    for r in rows:
+        date = r.get("localTradedAt")
+        if not date or "closePrice" not in r:
+            continue
+        out.append({"date": date, "rate": _to_number(r["closePrice"]) / quote_unit})
+    return sorted(out, key=lambda x: x["date"])
