@@ -1,30 +1,30 @@
 {
-  "updated_at": "2026-09-11 06:30 KST",
+  "updated_at": "2026-09-11 16:00 KST",
   "quotes": {
     "JP:2563": {
-      "close": 404.3,
-      "date": "2026-09-10",
+      "close": 402.4,
+      "date": "2026-09-11",
       "currency": "JPY",
       "name": "BRJ iShares S&P 500 JPY Hedged ETF",
       "stale_days": 0
     },
     "KR:000720": {
-      "close": 131200.0,
-      "date": "2026-09-10",
+      "close": 134900.0,
+      "date": "2026-09-11",
       "currency": "KRW",
       "name": "현대건설",
       "stale_days": 0
     },
     "KR:005930": {
-      "close": 269000.0,
-      "date": "2026-09-10",
+      "close": 259500.0,
+      "date": "2026-09-11",
       "currency": "KRW",
       "name": "삼성전자",
       "stale_days": 0
     },
     "KR:133690": {
-      "close": 174540.0,
-      "date": "2026-09-10",
+      "close": 174005.0,
+      "date": "2026-09-11",
       "currency": "KRW",
       "name": "TIGER 미국나스닥100",
       "stale_days": 0
@@ -67,12 +67,12 @@
   },
   "fx": {
     "JPYKRW": {
-      "rate": 8.7449,
+      "rate": 8.7278,
       "date": "2026-09-11",
       "quote_unit": 100
     },
     "USDKRW": {
-      "rate": 1350.6,
+      "rate": 1345.7,
       "date": "2026-09-11",
       "quote_unit": 1
     }
