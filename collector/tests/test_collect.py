@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from collect import resolve_targets, build_prices_json, stale_days
+from collect import resolve_targets, build_prices_json, stale_days, build_history_json
 
 
 class TestResolveTargets(unittest.TestCase):
@@ -92,6 +92,30 @@ class TestBuildPricesJson(unittest.TestCase):
         allowed = {"close", "date", "currency", "stale_days", "name"}
         self.assertEqual(set(out["quotes"]["US:QQQM"]) - allowed, set())
 
+
+
+class TestHistoryExport(unittest.TestCase):
+    def test_연도별로_나눠_담는다(self):
+        # 한 파일로 쌓으면 모바일이 전 기간을 통째로 내려받는다.
+        out = build_history_json(
+            price_rows=[("US:QQQM", "2025-12-31", 288.0), ("US:QQQM", "2026-01-02", 291.5)],
+            fx_rows=[("USDKRW", "2025-12-31", 1400.0), ("USDKRW", "2026-01-02", 1410.0)],
+            year="2026",
+        )
+        self.assertEqual(out["year"], "2026")
+        self.assertEqual(out["quotes"]["US:QQQM"], [["2026-01-02", 291.5]])
+        self.assertEqual(out["fx"]["USDKRW"], [["2026-01-02", 1410.0]])
+
+    def test_날짜_오름차순으로_담는다(self):
+        out = build_history_json(
+            price_rows=[("KR:005930", "2026-03-02", 2.0), ("KR:005930", "2026-01-02", 1.0)],
+            fx_rows=[], year="2026")
+        self.assertEqual([d for d, _ in out["quotes"]["KR:005930"]], ["2026-01-02", "2026-03-02"])
+
+    def test_해당_연도에_자료가_없으면_빈_묶음(self):
+        out = build_history_json(price_rows=[], fx_rows=[], year="2024")
+        self.assertEqual(out["quotes"], {})
+        self.assertEqual(out["fx"], {})
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

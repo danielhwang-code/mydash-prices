@@ -104,6 +104,24 @@ def build_prices_json(quotes, fx, today, updated_at):
     }
 
 
+def build_history_json(price_rows, fx_rows, year):
+    """일별 이력을 연도별로 나눠 담는다.
+
+    한 파일로 쌓으면 모바일이 전 기간을 통째로 내려받게 된다.
+    [날짜, 값] 쌍의 배열로 담아 키 이름이 반복되지 않게 한다.
+    """
+    quotes, fx = {}, {}
+    for key, date, close in price_rows:
+        if date[:4] == year:
+            quotes.setdefault(key, []).append([date, close])
+    for pair, date, rate in fx_rows:
+        if date[:4] == year:
+            fx.setdefault(pair, []).append([date, rate])
+    for d in (quotes, fx):
+        for k in d:
+            d[k].sort(key=lambda x: x[0])
+    return {"year": year, "quotes": quotes, "fx": fx}
+
 # ---------- 아래는 부작용이 있는 부분 (네트워크·DB) ----------
 
 def fetch_json(url, timeout=15, retries=2):
@@ -220,6 +238,20 @@ def main():
     payload = build_prices_json(quotes, fx_out, today, f"{now:%Y-%m-%d %H:%M KST}")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    # 연도별 이력 파일 — git이 백업·이력·배포를 겸한다.
+    # DB는 VPS 로컬 파일 하나뿐이라 이게 없으면 서버가 죽을 때 축적분이 사라진다.
+    price_rows = con.execute("SELECT key,date,close FROM price").fetchall()
+    fx_rows = con.execute("SELECT pair,date,rate FROM fx").fetchall()
+    years = sorted({d[:4] for _, d, _ in price_rows} | {d[:4] for _, d, _ in fx_rows})
+    hist_dir = REPO / "data" / "history"
+    hist_dir.mkdir(parents=True, exist_ok=True)
+    for y in years:
+        hist = build_history_json(price_rows, fx_rows, y)
+        (hist_dir / f"{y}.json").write_text(
+            json.dumps(hist, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    print(f"이력 {len(price_rows):,}행 → data/history/ ({', '.join(years)})")
+
     con.close()
 
     print(f"\n성공 {ok} · 실패 {fail} → {OUT.relative_to(REPO)} ({len(payload['quotes'])}종)")
