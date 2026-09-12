@@ -7,6 +7,9 @@ git pull --ff-only --quiet origin main
 
 python3 collector/collect.py || echo "[warn] 일부 종목 수집 실패 — 직전 값 유지"
 
+# 거시·부동산 지표(ECOS). 월간 자료라 증분만 받는다 — 새 달이 없으면 호출 몇 번으로 끝난다.
+python3 collector/indicators.py || echo "[warn] 지표 수집 실패 — 직전 값 유지"
+
 # 먼저 스테이징하고 인덱스를 본다.
 # `git diff data/` 는 추적되지 않은 새 파일(연도별 이력 등)을 보지 못한다.
 git add data/
