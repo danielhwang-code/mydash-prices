@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-13 16:00 KST",
+  "updated_at": "2026-09-14 06:30 KST",
   "quotes": {
     "JP:2563": {
       "close": 402.4,
@@ -68,12 +68,12 @@
   "fx": {
     "JPYKRW": {
       "rate": 8.7518,
-      "date": "2026-09-12",
+      "date": "2026-09-14",
       "quote_unit": 100
     },
     "USDKRW": {
       "rate": 1343.8,
-      "date": "2026-09-12",
+      "date": "2026-09-14",
       "quote_unit": 1
     }
   }
