@@ -7,14 +7,18 @@
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 
 from collect import db_connect, fetch_json, REPO, KST
 from sources.ecos import SERIES, parse_series, total_count, EcosError
 
-KEY = "sample"  # 정식 키를 받으면 여기만 바꾸면 된다
+# ⚠️ 이 저장소는 공개다. 키를 소스에 적으면 그대로 공개된다.
+# VPS 의 ~/.mydash_env 에 두고 환경변수로 읽는다 (run_indicators.sh 가 source 한다).
+KEY = os.environ.get("ECOS_KEY", "sample")
 BASE = "https://ecos.bok.or.kr/api/StatisticSearch"
-PAGE = 10  # 샘플키 상한. 정식 키면 더 키울 수 있다
+# 샘플키는 호출당 10건이 상한. 정식 키는 훨씬 크므로 10건씩 받으면 느리기만 하다.
+PAGE = 10 if KEY == "sample" else 1000
 OUT = REPO / "data" / "indicators.json"
 
 
@@ -42,6 +46,8 @@ def main():
 
     now = dt.datetime.now(KST)
     end = now.strftime("%Y%m")
+    # 키 값은 절대 찍지 않는다. 어느 모드인지만 알린다.
+    print(f"  ECOS {'정식 키' if KEY != 'sample' else '샘플 키(호출당 10건 제한)'} · 페이지 {PAGE}건")
     con = db_connect()
     con.execute("""CREATE TABLE IF NOT EXISTS indicator (
         series TEXT, date TEXT, value REAL, PRIMARY KEY (series, date))""")

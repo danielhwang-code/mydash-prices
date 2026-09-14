@@ -4,6 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# 키는 공개 저장소 밖에 둔다. 없으면 샘플키로 동작한다.
+[ -f "$HOME/.mydash_env" ] && . "$HOME/.mydash_env"
+
 git pull --ff-only --quiet origin main
 
 python3 collector/indicators.py || echo "[warn] 지표 수집 실패 — 직전 값 유지"

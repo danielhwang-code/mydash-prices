@@ -43,3 +43,28 @@ class TestParseSeries(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestKeyConfig(unittest.TestCase):
+    def test_환경변수가_없으면_샘플키로_동작한다(self):
+        import importlib, os, sys
+        os.environ.pop("ECOS_KEY", None)
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+        import indicators
+        importlib.reload(indicators)
+        self.assertEqual(indicators.KEY, "sample")
+        self.assertEqual(indicators.PAGE, 10, "샘플키는 호출당 10건이 상한")
+
+    def test_정식키가_있으면_그것을_쓰고_페이지도_키운다(self):
+        # 정식 키는 호출당 상한이 훨씬 크다. 10건씩 받으면 느리기만 하다.
+        import importlib, os, sys
+        os.environ["ECOS_KEY"] = "test-key-1234"
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+        import indicators
+        importlib.reload(indicators)
+        try:
+            self.assertEqual(indicators.KEY, "test-key-1234")
+            self.assertGreater(indicators.PAGE, 10)
+        finally:
+            os.environ.pop("ECOS_KEY", None)
+            importlib.reload(indicators)
