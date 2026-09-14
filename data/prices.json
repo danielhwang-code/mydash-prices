@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-14 16:00 KST",
+  "updated_at": "2026-09-15 06:30 KST",
   "quotes": {
     "JP:2563": {
       "close": 401.7,
@@ -9,14 +9,14 @@
       "stale_days": 0
     },
     "KR:000720": {
-      "close": 128200.0,
+      "close": 125500.0,
       "date": "2026-09-14",
       "currency": "KRW",
       "name": "현대건설",
       "stale_days": 0
     },
     "KR:005930": {
-      "close": 249000.0,
+      "close": 248500.0,
       "date": "2026-09-14",
       "currency": "KRW",
       "name": "삼성전자",
@@ -30,36 +30,36 @@
       "stale_days": 0
     },
     "US:AMZN": {
-      "close": 256.78,
-      "date": "2026-09-11",
+      "close": 253.54,
+      "date": "2026-09-14",
       "currency": "USD",
       "name": "Amazon.com Inc",
       "stale_days": 0
     },
     "US:MSFT": {
-      "close": 495.63,
-      "date": "2026-09-11",
+      "close": 505.41,
+      "date": "2026-09-14",
       "currency": "USD",
       "name": "Microsoft Corporation",
       "stale_days": 0
     },
     "US:NVDA": {
-      "close": 218.29,
-      "date": "2026-09-11",
+      "close": 210.96,
+      "date": "2026-09-14",
       "currency": "USD",
       "name": "NVIDIA Corporation",
       "stale_days": 0
     },
     "US:QQQM": {
-      "close": 294.39,
-      "date": "2026-09-11",
+      "close": 292.02,
+      "date": "2026-09-14",
       "currency": "USD",
       "name": "Invesco NASDAQ 100 ETF",
       "stale_days": 0
     },
     "US:TSLA": {
-      "close": 365.44,
-      "date": "2026-09-11",
+      "close": 358.97,
+      "date": "2026-09-14",
       "currency": "USD",
       "name": "Tesla Inc",
       "stale_days": 0
@@ -67,13 +67,13 @@
   },
   "fx": {
     "JPYKRW": {
-      "rate": 8.7311,
-      "date": "2026-09-14",
+      "rate": 8.7341,
+      "date": "2026-09-15",
       "quote_unit": 100
     },
     "USDKRW": {
-      "rate": 1346.8,
-      "date": "2026-09-14",
+      "rate": 1348.5,
+      "date": "2026-09-15",
       "quote_unit": 1
     }
   }
