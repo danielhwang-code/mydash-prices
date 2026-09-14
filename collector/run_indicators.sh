@@ -6,9 +6,12 @@ cd "$(dirname "$0")/.."
 
 git pull --ff-only --quiet origin main
 
-python3 collector/indicators.py || { echo "[warn] 지표 수집 실패 — 직전 값 유지"; exit 0; }
+python3 collector/indicators.py || echo "[warn] 지표 수집 실패 — 직전 값 유지"
 
-git add data/indicators.json
+# 선거 날짜(Wikidata). 자주 바뀌지 않으므로 같은 주기로 충분하다.
+python3 collector/elections.py || echo "[warn] 선거 수집 실패 — 직전 값 유지"
+
+git add data/indicators.json data/elections.json
 if git diff --cached --quiet; then
   echo "변경 없음"
   exit 0
