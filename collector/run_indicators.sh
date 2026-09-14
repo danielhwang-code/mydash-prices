@@ -11,7 +11,9 @@ python3 collector/indicators.py || echo "[warn] 지표 수집 실패 — 직전 
 # 선거 날짜(Wikidata). 자주 바뀌지 않으므로 같은 주기로 충분하다.
 python3 collector/elections.py || echo "[warn] 선거 수집 실패 — 직전 값 유지"
 
-git add data/indicators.json data/elections.json
+# 파일을 하나씩 적으면 새 출력이 생길 때마다 빠뜨린다(이력·전쟁 파일에서 실제로 겪음).
+# 디렉터리 단위로 올리고 인덱스로 판정한다.
+git add data/
 if git diff --cached --quiet; then
   echo "변경 없음"
   exit 0

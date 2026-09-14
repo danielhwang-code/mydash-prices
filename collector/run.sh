@@ -9,7 +9,9 @@ python3 collector/collect.py || echo "[warn] 일부 종목 수집 실패 — 직
 
 # 먼저 스테이징하고 인덱스를 본다.
 # `git diff data/` 는 추적되지 않은 새 파일(연도별 이력 등)을 보지 못한다.
-git add data/prices.json data/history/
+# 파일을 하나씩 적으면 새 출력이 생길 때마다 빠뜨린다(이력·전쟁 파일에서 실제로 겪음).
+# 디렉터리 단위로 올리고 인덱스로 판정한다.
+git add data/
 if git diff --cached --quiet; then
   echo "변경 없음"
   exit 0
