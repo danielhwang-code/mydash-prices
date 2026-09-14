@@ -66,3 +66,41 @@ class TestParseElections(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+WARS = json.loads((FIX / "wikidata_wars.json").read_text(encoding="utf-8"))
+
+
+class TestParseWars(unittest.TestCase):
+    def setUp(self):
+        from sources.wikidata import parse_wars
+        self.got = parse_wars(WARS)
+        self.labels = [w["label"] for w in self.got]
+
+    def test_주요_전쟁을_찾는다(self):
+        for name in ("러시아의 우크라이나 침공", "2023년 이스라엘-하마스 전쟁", "이란-이스라엘 전쟁"):
+            self.assertIn(name, self.labels, f"{name} 이 빠졌다")
+
+    def test_국지_전투를_버린다(self):
+        # 언어판이 몇 개뿐인 항목은 시장에 영향을 준 사건이 아니다.
+        for bad in ("Battle of Shererina", "Battle of Zebak", "어떤 국지 충돌"):
+            self.assertNotIn(bad, self.labels, f"{bad} 가 남았다")
+
+    def test_같은_사건이_중복되지_않는다(self):
+        # 우크라이나 침공은 원본에 3번, 시리아 내전은 2번 들어 있다.
+        keys = [(w["date"], w["label"]) for w in self.got]
+        self.assertEqual(len(keys), len(set(keys)))
+
+    def test_주목도를_함께_남긴다(self):
+        # 나중에 기준을 조정하거나 왜 걸렸는지 확인할 수 있어야 한다.
+        ukr = next(w for w in self.got if w["label"] == "러시아의 우크라이나 침공")
+        self.assertEqual(ukr["sitelinks"], 176)
+
+    def test_날짜_오름차순(self):
+        self.assertEqual(self.got, sorted(self.got, key=lambda w: w["date"]))
+
+    def test_기준을_올리면_줄어든다(self):
+        from sources.wikidata import parse_wars
+        strict = parse_wars(WARS, min_sitelinks=100)
+        self.assertLess(len(strict), len(self.got))
+        self.assertTrue(all(w["sitelinks"] >= 100 for w in strict))

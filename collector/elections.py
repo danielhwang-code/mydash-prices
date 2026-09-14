@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wikidata에서 한국·미국 대통령 선거 날짜를 받아 data/elections.json 으로 내보낸다.
+"""Wikidata에서 대통령 선거 날짜와 주요 전쟁 시작일을 받아 data/ 로 내보낸다.
 
 선거는 자주 바뀌지 않으므로 주 1회로 충분하다.
 Wikidata는 레이트리밋이 빡빡해(현재 1분당 1회 수준) 한 번의 쿼리로 두 나라를 함께 받는다.
@@ -12,9 +12,10 @@ import urllib.parse
 import urllib.request
 
 from collect import REPO
-from sources.wikidata import parse_elections
+from sources.wikidata import parse_elections, parse_wars, MIN_WAR_SITELINKS
 
 OUT = REPO / "data" / "elections.json"
+OUT_WARS = REPO / "data" / "wars.json"
 ENDPOINT = "https://query.wikidata.org/sparql"
 UA = {
     "User-Agent": "mydash/1.0 (personal dashboard; contact via repo)",
@@ -34,8 +35,21 @@ ORDER BY ?date
 """
 
 
-def fetch(tries=3):
-    url = ENDPOINT + "?" + urllib.parse.urlencode({"query": QUERY})
+WAR_QUERY = f"""
+SELECT ?itemLabel ?start ?sitelinks WHERE {{
+  ?item wdt:P31/wdt:P279* wd:Q198 ;
+        wdt:P580 ?start ;
+        wikibase:sitelinks ?sitelinks .
+  FILTER(?start >= "2005-01-01"^^xsd:dateTime)
+  FILTER(?sitelinks >= {MIN_WAR_SITELINKS})
+  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "ko,en". }}
+}}
+ORDER BY ?start
+"""
+
+
+def fetch(query=None, tries=4):
+    url = ENDPOINT + "?" + urllib.parse.urlencode({"query": query or QUERY})
     for attempt in range(tries):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=90) as r:
@@ -68,9 +82,24 @@ def main():
     )
     kr = sum(1 for r in rows if r["country"] == "KR")
     print(f"  ✓ 선거 {len(rows)}건 (한국 {kr} · 미국 {len(rows)-kr})  {rows[0]['date']} ~ {rows[-1]['date']}")
-    for r in rows[-4:]:
-        print(f"     {r['date']}  {r['label']}")
-    print(f"\n선거 {len(rows)}건 → {OUT.relative_to(REPO)}")
+
+    # 전쟁 — Wikidata 는 분당 1회 수준으로 제한한다(자기네 장애 대응 중).
+    # 선거 조회 직후에 던지면 반드시 429 다. 한 텀 쉬고 간다.
+    time.sleep(70)
+    try:
+        wars = parse_wars(fetch(WAR_QUERY))
+    except Exception as e:
+        print(f"  ✗ 전쟁 조회 실패: {type(e).__name__}: {str(e)[:70]} — 기존 파일 유지")
+        return 0
+    if wars:
+        OUT_WARS.write_text(
+            json.dumps({"source": "wikidata", "min_sitelinks": MIN_WAR_SITELINKS, "wars": wars},
+                       ensure_ascii=False, indent=None) + "\n", encoding="utf-8")
+        print(f"  ✓ 전쟁 {len(wars)}건 (언어판 {MIN_WAR_SITELINKS}개 이상)  {wars[0]['date']} ~ {wars[-1]['date']}")
+        for w in wars[-3:]:
+            print(f"     {w['date']}  [{w['sitelinks']:>3}]  {w['label']}")
+    else:
+        print("  ✗ 전쟁 0건 — 기존 파일 유지")
     return 0
 
 

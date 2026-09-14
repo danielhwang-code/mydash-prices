@@ -34,3 +34,32 @@ def parse_elections(payload):
         seen.add(date)
         out.append({"date": date, "country": country, "label": label})
     return sorted(out, key=lambda e: e["date"])
+
+
+# 국지 전투와 주요 전쟁을 가르는 기준.
+# Wikidata 항목의 언어판 수 — 주요 전쟁은 50~176개, 국지 전투는 1~4개다.
+MIN_WAR_SITELINKS = 25
+
+
+def parse_wars(payload, min_sitelinks=MIN_WAR_SITELINKS):
+    """SPARQL 응답 → [{date, label, sitelinks}] 오름차순·중복 제거.
+
+    '전쟁'으로만 거르면 개별 전투가 쏟아진다. 주목도(언어판 수)로 가른다.
+    기준을 결과에 남겨 나중에 조정하거나 왜 걸렸는지 확인할 수 있게 한다.
+    """
+    out, seen = [], set()
+    for row in payload.get("results", {}).get("bindings", []):
+        label = (row.get("itemLabel", {}) or {}).get("value", "").strip()
+        date = (row.get("start", {}) or {}).get("value", "")[:10]
+        try:
+            links = int((row.get("sitelinks", {}) or {}).get("value", 0))
+        except (TypeError, ValueError):
+            continue
+        if not label or len(date) != 10 or links < min_sitelinks:
+            continue
+        key = (date, label)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"date": date, "label": label, "sitelinks": links})
+    return sorted(out, key=lambda w: w["date"])
