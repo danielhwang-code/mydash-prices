@@ -93,7 +93,8 @@ def build_prices_json(quotes, fx, today, updated_at):
                 "date": q["date"],
                 "currency": q["currency"],
                 "name": q.get("name"),
-                "stale_days": stale_days(q.get("last_ok"), today) or 0,
+                # None(마지막 성공일 모름)을 0으로 바꾸지 않는다 — 모르는 상태가 최신으로 보이면 안 된다
+                "stale_days": stale_days(q.get("last_ok"), today),
             }
             for key, q in sorted(quotes.items())
         },

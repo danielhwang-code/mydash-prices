@@ -119,3 +119,20 @@ class TestHistoryExport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestUnknownStaleness(unittest.TestCase):
+    def test_마지막_성공일을_모르면_0으로_바꾸지_않는다(self):
+        # None 을 0으로 만들면 '상태를 모르는 시세'가 '최신'으로 표시된다.
+        out = build_prices_json(
+            quotes={"KR:005930": {"close": 1, "date": "2026-09-01", "currency": "KRW",
+                                  "last_ok": None, "name": "삼성전자"}},
+            fx={}, today="2026-09-09", updated_at="t")
+        self.assertIsNone(out["quotes"]["KR:005930"]["stale_days"])
+
+    def test_오늘_성공했으면_0_그대로(self):
+        out = build_prices_json(
+            quotes={"KR:005930": {"close": 1, "date": "2026-09-09", "currency": "KRW",
+                                  "last_ok": "2026-09-09", "name": "삼성전자"}},
+            fx={}, today="2026-09-09", updated_at="t")
+        self.assertEqual(out["quotes"]["KR:005930"]["stale_days"], 0)
