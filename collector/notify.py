@@ -12,6 +12,7 @@
 """
 import json
 import os
+import re
 import pathlib
 import urllib.error
 import urllib.request
@@ -109,17 +110,81 @@ def report(job, failed, total, path=STATE, webhook=None, threshold=FAIL_THRESHOL
     return sent
 
 
+WEBHOOK_RE = re.compile(
+    r"^https://(?:discord|discordapp)\.com/api/webhooks/\d+/[A-Za-z0-9_-]+$")
+
+
+def valid_webhook(url):
+    """디스코드 웹훅 URL 인지. 붙여넣기 사고를 저장 전에 막는다.
+
+    입력이 보이지 않는 프롬프트에 시험 명령을 붙여넣어 그 명령문이 URL 로
+    저장된 적이 있다. 형식 검사가 있었으면 그 자리에서 걸렸다.
+    """
+    return bool(WEBHOOK_RE.match((url or "").strip()))
+
+
+def upsert_env(text, key, value):
+    """환경변수 파일 본문에서 key 줄만 갈아끼운다. 나머지 줄은 그대로 둔다."""
+    line = f'export {key}="{value}"'
+    out, replaced = [], False
+    for row in (text or "").splitlines():
+        if re.match(rf"^\s*export\s+{re.escape(key)}=", row):
+            if not replaced:
+                out.append(line)
+                replaced = True
+            continue
+        out.append(row)
+    if not replaced:
+        out.append(line)
+    return "\n".join(out).lstrip("\n") + "\n"
+
+
+def set_webhook(env_path, prompt=input):
+    """웹훅 URL 을 받아 검증하고 저장한 뒤 바로 시험 발송한다. 성공하면 0.
+
+    검증에 걸리면 파일을 건드리지 않는다 — 잘못된 값이 들어가면
+    다음 장애 때 알림이 조용히 실패한다.
+    """
+    url = (prompt("디스코드 웹훅 URL 을 붙여넣고 엔터: ") or "").strip()
+    if not valid_webhook(url):
+        shown = url[:32] + ("…" if len(url) > 32 else "")
+        print("디스코드 웹훅 URL 형식이 아닙니다 — 저장하지 않았습니다.")
+        print(f"  받은 값: {shown!r} ({len(url)}자)")
+        print("  형식: https://discord.com/api/webhooks/<숫자>/<문자열>")
+        print("  디스코드 → 채널 톱니 → 연동 → 웹후크 → '웹후크 URL 복사'")
+        return 1
+
+    path = pathlib.Path(env_path).expanduser()
+    before = path.read_text(encoding="utf-8") if path.exists() else ""
+    path.write_text(upsert_env(before, "DISCORD_WEBHOOK", url), encoding="utf-8")
+    path.chmod(0o600)
+    print(f"저장했습니다 → {path} (600)")
+
+    # 방금 받은 값으로 바로 쏜다. 이 셸의 환경변수는 아직 비어 있다.
+    if post("🔔 개인 대시보드 알림 시험 — 이 메시지가 보이면 연결됐습니다.", webhook=url):
+        print("디스코드를 확인해 주세요.")
+        return 0
+    print("저장은 됐지만 발송이 실패했습니다. 웹훅이 삭제됐거나 URL 이 틀렸을 수 있습니다.")
+    return 1
+
+
 def cli(argv=None):
     """셸에서 부르는 통로. run.sh 의 push 실패처럼 파이썬 밖 실패도 같은 규칙을 탄다."""
     import argparse
     ap = argparse.ArgumentParser(description="디스코드 알림")
     ap.add_argument("--test", action="store_true", help="연결 확인용 시험 메시지 발송")
+    ap.add_argument("--set-webhook", action="store_true",
+                    help="웹훅 URL 을 검증해 ~/.mydash_env 에 저장하고 바로 시험 발송")
+    ap.add_argument("--env", default="~/.mydash_env")
     ap.add_argument("--job", default="시세 수집", help="상태를 따로 기록할 작업 이름")
     ap.add_argument("--failed", nargs="*", default=[], help="실패 항목(없으면 정상으로 본다)")
     ap.add_argument("--total", type=int, default=0)
     ap.add_argument("--threshold", type=int, default=FAIL_THRESHOLD)
     ap.add_argument("--state", default=str(STATE))
     a = ap.parse_args(argv)
+
+    if a.set_webhook:
+        return set_webhook(a.env)
 
     if a.test:
         ok = post("🔔 개인 대시보드 알림 시험 — 이 메시지가 보이면 연결됐습니다.")

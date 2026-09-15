@@ -210,5 +210,156 @@ class TestCli(unittest.TestCase):
         self.assertIn("시세 push", sent[0])
 
 
+class TestValidWebhook(unittest.TestCase):
+    """붙여넣기 사고를 저장 전에 막는다.
+
+    실제로 겪은 일: 입력이 보이지 않는 프롬프트에 시험 명령을 세 번 붙여넣어
+    그 명령문이 웹훅 URL 로 저장됐다. 형식 검사가 있었으면 그 자리에서 걸렸다.
+    """
+
+    def ok(self, url):
+        from notify import valid_webhook
+        self.assertTrue(valid_webhook(url), f"거부되면 안 된다: {url[:40]}")
+
+    def no(self, url):
+        from notify import valid_webhook
+        self.assertFalse(valid_webhook(url), f"통과하면 안 된다: {url[:40]}")
+
+    def test_진짜_웹훅_형식을_받는다(self):
+        self.ok("https://discord.com/api/webhooks/1234567890123456789/"
+                "aBcD-efGh_ijKlMnOpQrStUvWxYz0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ01")
+
+    def test_옛_도메인도_받는다(self):
+        self.ok("https://discordapp.com/api/webhooks/123456789012345678/"
+                "abcDEF-123_456ghiJKLmnoPQRstuVWXyz0123456789abcDEFghiJKLmnoPQRstu")
+
+    def test_명령문은_거부한다(self):
+        self.no(". ~/.mydash_env && python3 ~/mydash/collector/notify.py --test")
+
+    def test_빈값과_공백은_거부한다(self):
+        self.no("")
+        self.no("   ")
+
+    def test_다른_서비스_웹훅은_거부한다(self):
+        self.no("https://hooks.slack.com/services/T000/B000/XXXXXXXXXXXXXXXXXXXXXXXX")
+
+    def test_주소는_맞지만_토큰이_없으면_거부한다(self):
+        self.no("https://discord.com/api/webhooks/1234567890123456789")
+        self.no("https://discord.com/api/webhooks/1234567890123456789/")
+
+    def test_앞뒤_공백은_다듬어_받는다(self):
+        # 붙여넣을 때 흔하다.
+        self.ok("  https://discord.com/api/webhooks/1234567890123456789/"
+                "aBcD-efGh_ijKlMnOpQrStUvWxYz0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ01  ")
+
+    def test_뒤에_다른_말이_붙으면_거부한다(self):
+        self.no("https://discord.com/api/webhooks/123456789012345678/"
+                "abcDEFghiJKLmnoPQRstuVWXyz0123456789abcDEFghiJKLmnoPQRstuVWXyz01 && echo hi")
+
+
+class TestUpsertEnv(unittest.TestCase):
+    """~/.mydash_env 를 고칠 때 기존 키(ECOS_KEY)를 잃으면 안 된다."""
+
+    def up(self, text, value="V"):
+        from notify import upsert_env
+        return upsert_env(text, "DISCORD_WEBHOOK", value)
+
+    def test_없으면_덧붙인다(self):
+        out = self.up('export ECOS_KEY="abc"\n')
+        self.assertIn('export ECOS_KEY="abc"', out)
+        self.assertIn('export DISCORD_WEBHOOK="V"', out)
+
+    def test_있으면_바꿔친다_중복되지_않는다(self):
+        out = self.up('export ECOS_KEY="abc"\nexport DISCORD_WEBHOOK="old"\n')
+        self.assertEqual(out.count("DISCORD_WEBHOOK"), 1)
+        self.assertNotIn("old", out)
+        self.assertIn('export ECOS_KEY="abc"', out)
+
+    def test_빈_파일에도_쓴다(self):
+        self.assertIn('export DISCORD_WEBHOOK="V"', self.up(""))
+
+    def test_줄바꿈으로_끝나지_않아도_줄이_붙지_않는다(self):
+        out = self.up('export ECOS_KEY="abc"')
+        self.assertIn('export ECOS_KEY="abc"\n', out)
+        self.assertTrue(out.endswith("\n"))
+
+    def test_비슷한_이름의_키는_건드리지_않는다(self):
+        out = self.up('export DISCORD_WEBHOOK_OLD="keep"\n')
+        self.assertIn('DISCORD_WEBHOOK_OLD="keep"', out)
+        self.assertIn('export DISCORD_WEBHOOK="V"', out)
+
+
+class TestSetWebhook(unittest.TestCase):
+    """파일을 실제로 쓰는 부분. 이번에 깨진 지점이다."""
+
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.TemporaryDirectory()
+        self.env = pathlib.Path(self.dir.name) / ".mydash_env"
+        self.env.write_text('export ECOS_KEY="abc"\n', encoding="utf-8")
+        self.sent = []
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    GOOD = ("https://discord.com/api/webhooks/1234567890123456789/"
+            "aBcD-efGh_ijKlMnOpQrStUvWxYz0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ01")
+
+    def run_with(self, typed, ok=True):
+        import notify
+        orig = notify.post
+        notify.post = lambda text, webhook=None: (self.sent.append((text, webhook)), ok)[1]
+        try:
+            return notify.set_webhook(str(self.env), prompt=lambda _: typed)
+        finally:
+            notify.post = orig
+
+    def test_형식이_틀리면_파일을_건드리지_않는다(self):
+        # 실제 사고: 시험 명령문이 그대로 저장됐다.
+        rc = self.run_with(". ~/.mydash_env && python3 ~/mydash/collector/notify.py --test")
+        self.assertNotEqual(rc, 0)
+        self.assertEqual(self.env.read_text(encoding="utf-8"), 'export ECOS_KEY="abc"\n')
+        self.assertEqual(self.sent, [], "저장도 안 했는데 발송했다")
+
+    def test_올바른_입력은_저장하고_시험_발송한다(self):
+        self.assertEqual(self.run_with(self.GOOD), 0)
+        body = self.env.read_text(encoding="utf-8")
+        self.assertIn(f'export DISCORD_WEBHOOK="{self.GOOD}"', body)
+        self.assertIn('export ECOS_KEY="abc"', body, "기존 키를 잃었다")
+        self.assertEqual(len(self.sent), 1)
+
+    def test_방금_넣은_URL_로_발송한다(self):
+        # 파일에 쓴 뒤 환경변수를 다시 읽지 않으므로, 값을 직접 넘겨야 한다.
+        self.run_with(self.GOOD)
+        self.assertEqual(self.sent[0][1], self.GOOD)
+
+    def test_권한을_600_으로_조인다(self):
+        import stat
+        self.env.chmod(0o644)
+        self.run_with(self.GOOD)
+        self.assertEqual(stat.S_IMODE(self.env.stat().st_mode), 0o600)
+
+    def test_두_번_넣어도_한_줄이다(self):
+        self.run_with(self.GOOD)
+        self.run_with(self.GOOD)
+        body = self.env.read_text(encoding="utf-8")
+        self.assertEqual(body.count("DISCORD_WEBHOOK"), 1)
+
+    def test_파일이_없어도_만든다(self):
+        self.env.unlink()
+        self.assertEqual(self.run_with(self.GOOD), 0)
+        self.assertTrue(self.env.exists())
+
+    def test_발송이_실패하면_0이_아니다(self):
+        # 저장은 됐지만 URL 이 폐기됐을 수 있다. 성공으로 보이면 안 된다.
+        rc = self.run_with(self.GOOD, ok=False)
+        self.assertNotEqual(rc, 0)
+        self.assertIn("DISCORD_WEBHOOK", self.env.read_text(encoding="utf-8"))
+
+    def test_앞뒤_공백은_다듬어_저장한다(self):
+        self.run_with("  " + self.GOOD + "  ")
+        self.assertIn(f'"{self.GOOD}"', self.env.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
