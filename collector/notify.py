@@ -68,20 +68,42 @@ def save_state(job, fails, notified, path=STATE):
     path.write_text(json.dumps(all_state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+# 디스코드 앞단 Cloudflare 가 파이썬 기본 User-Agent 를 막는다.
+# 실측(2026-09-15 VPS): 기본 UA → HTTP 403 `error code: 1010` / 브라우저 UA → 204.
+UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/128.0 Safari/537.36")
+
+
+def build_request(url, text):
+    """디스코드로 보낼 요청 하나. UA 가 빠지면 알림 전체가 죽는다."""
+    return urllib.request.Request(
+        url,
+        data=json.dumps({"content": text}, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json", "User-Agent": UA})
+
+
 def post(text, webhook=None):
     """디스코드로 보낸다. URL 이 없으면 조용히 건너뛴다(로컬 실행 대비)."""
     url = webhook or os.environ.get("DISCORD_WEBHOOK", "")
     if not url:
         print("[notify] DISCORD_WEBHOOK 없음 — 보내지 않음")
         return False
-    body = json.dumps({"content": text}).encode("utf-8")
-    req = urllib.request.Request(url, data=body,
-                                 headers={"Content-Type": "application/json"})
+    req = build_request(url, text)
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             return 200 <= r.status < 300
-    except urllib.error.URLError as e:
-        print(f"[notify] 전송 실패: {e}")
+    except urllib.error.HTTPError as e:
+        # 본문까지 남긴다. 403 이 Cloudflare 차단(`error code: 1010`)인지
+        # 디스코드의 토큰 거부인지에 따라 대응이 완전히 다르다.
+        try:
+            body = e.read()[:200].decode("utf-8", "replace").strip()
+        except Exception:
+            body = ""
+        print(f"[notify] 전송 실패: HTTP {e.code} {e.reason} · {body}")
+        return False
+    except Exception as e:
+        # 알림이 못 갔다고 수집 전체가 멈추면 본말전도다.
+        print(f"[notify] 전송 실패: {type(e).__name__} {e}")
         return False
 
 

@@ -418,5 +418,90 @@ class TestPasteMarkers(unittest.TestCase):
         self.assertFalse(valid_webhook("[200~. ~/.mydash_env && python3 notify.py --test[201~"))
 
 
+class TestRequest(unittest.TestCase):
+    """디스코드 앞단 Cloudflare 는 파이썬 기본 User-Agent 를 막는다.
+
+    실측(2026-09-15 VPS): 기본 UA → HTTP 403 `error code: 1010`,
+    브라우저 UA → 204. 헤더 하나가 빠지면 알림 전체가 죽는다.
+    """
+
+    URL = ("https://discord.com/api/webhooks/1234567890123456789/"
+           "aBcD-efGh_ijKlMnOpQrStUvWxYz0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ01")
+
+    def req(self):
+        from notify import build_request
+        return build_request(self.URL, "안녕")
+
+    def test_User_Agent_를_보낸다(self):
+        ua = self.req().get_header("User-agent")
+        self.assertTrue(ua, "User-Agent 가 없으면 Cloudflare 가 1010 으로 막는다")
+        self.assertNotIn("urllib", ua.lower())
+        self.assertNotIn("python", ua.lower())
+
+    def test_JSON_으로_보낸다(self):
+        import json
+        r = self.req()
+        self.assertEqual(r.get_header("Content-type"), "application/json")
+        self.assertEqual(json.loads(r.data.decode("utf-8"))["content"], "안녕")
+
+    def test_주소는_그대로_쓴다(self):
+        self.assertEqual(self.req().full_url, self.URL)
+
+    def test_한글도_깨지지_않는다(self):
+        import json
+        from notify import build_request
+        r = build_request(self.URL, "⚠️ 시세 수집 실패 — 연속 3회")
+        self.assertIn("연속 3회", json.loads(r.data.decode("utf-8"))["content"])
+
+
+class TestPostErrors(unittest.TestCase):
+    """실패했을 때 원인을 화면에 남긴다.
+
+    403 의 본문이 `error code: 1010`(Cloudflare 차단)인지 디스코드가 준
+    `Invalid Webhook Token` 인지에 따라 대응이 완전히 다르다.
+    실제로 본문이 안 보여 진단을 한 번 더 돌려야 했다.
+    """
+
+    URL = ("https://discord.com/api/webhooks/1234567890123456789/"
+           "aBcD-efGh_ijKlMnOpQrStUvWxYz0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ01")
+
+    def post_with(self, exc):
+        import contextlib
+        import io
+        import notify
+        import urllib.request
+        orig = urllib.request.urlopen
+        urllib.request.urlopen = lambda *a, **k: (_ for _ in ()).throw(exc)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                ok = notify.post("테스트", webhook=self.URL)
+        finally:
+            urllib.request.urlopen = orig
+        return ok, buf.getvalue()
+
+    def test_HTTP_오류는_상태코드와_본문을_남긴다(self):
+        import io
+        import urllib.error
+        exc = urllib.error.HTTPError(self.URL, 403, "Forbidden", {},
+                                     io.BytesIO(b"error code: 1010"))
+        ok, out = self.post_with(exc)
+        self.assertFalse(ok)
+        self.assertIn("403", out)
+        self.assertIn("1010", out, "본문이 없으면 Cloudflare 차단인지 알 수 없다")
+
+    def test_연결_오류도_삼키지_않는다(self):
+        import urllib.error
+        ok, out = self.post_with(urllib.error.URLError("연결 거부"))
+        self.assertFalse(ok)
+        self.assertIn("연결 거부", out)
+
+    def test_예상못한_예외에도_수집이_멈추지_않는다(self):
+        # 알림 때문에 수집 전체가 죽으면 본말전도다.
+        ok, out = self.post_with(TimeoutError("시간 초과"))
+        self.assertFalse(ok)
+        self.assertTrue(out.strip())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
