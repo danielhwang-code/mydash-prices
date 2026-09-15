@@ -117,8 +117,6 @@ class TestHistoryExport(unittest.TestCase):
         self.assertEqual(out["quotes"], {})
         self.assertEqual(out["fx"], {})
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 class TestUnknownStaleness(unittest.TestCase):
@@ -136,3 +134,7 @@ class TestUnknownStaleness(unittest.TestCase):
                                   "last_ok": "2026-09-09", "name": "삼성전자"}},
             fx={}, today="2026-09-09", updated_at="t")
         self.assertEqual(out["quotes"]["KR:005930"]["stale_days"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

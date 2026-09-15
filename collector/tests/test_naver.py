@@ -68,8 +68,6 @@ class TestFx(unittest.TestCase):
         self.assertEqual(parse_fx(load("fx_usdkrw.json"))["quote_unit"], 1)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 class TestHistory(unittest.TestCase):
@@ -96,3 +94,7 @@ class TestHistory(unittest.TestCase):
     def test_달러_이력은_콤마를_떼고_그대로_쓴다(self):
         rows = parse_fx_history(load("hist_fx_usdkrw.json"), quote_unit=1)
         self.assertAlmostEqual(rows[-1]["rate"], 1341.40)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

@@ -3,3 +3,4 @@ collector/**/__pycache__/
 __pycache__/
 *.pyc
 logs/
+collector/notify_state.json

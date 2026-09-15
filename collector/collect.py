@@ -19,6 +19,7 @@ import urllib.request
 from dataclasses import dataclass, field
 
 from sources.naver import parse_domestic, parse_overseas, parse_fx, QuoteNotFound
+import notify
 
 ROOT = pathlib.Path(__file__).resolve().parent
 REPO = ROOT.parent
@@ -181,6 +182,7 @@ def main():
 
     con = db_connect()
     ok = fail = 0
+    failed = []          # 무엇이 실패했는지 — 알림에 담는다
 
     for t in targets:
         try:
@@ -199,6 +201,7 @@ def main():
                             (t.key, today, q["close"], q["currency"], q.get("name"), q["date"]))
         except Exception as e:
             fail += 1
+            failed.append(t.key)
             # 실패해도 0으로 때우지 않는다. 직전 값을 유지하고 stale만 올린다.
             print(f"  ✗ {t.key:<12} {e}")
             if not args.dry_run:
@@ -217,6 +220,9 @@ def main():
                 con.execute("INSERT OR REPLACE INTO fx VALUES (?,?,?,?)",
                             (pair, today, v["rate"], v["quote_unit"]))
         except Exception as e:
+            # 환율이 없으면 해외 종목 평가액 자체가 안 나온다. 종목 실패와 똑같이 센다.
+            fail += 1
+            failed.append(pair)
             print(f"  ✗ {pair:<12} {e}")
 
     if args.dry_run:
@@ -256,6 +262,7 @@ def main():
     con.close()
 
     print(f"\n성공 {ok} · 실패 {fail} → {OUT.relative_to(REPO)} ({len(payload['quotes'])}종)")
+    notify.report("시세 수집", failed, ok + fail)
     return 0 if fail == 0 else 1
 
 

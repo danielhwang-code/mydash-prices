@@ -41,8 +41,6 @@ class TestParseSeries(unittest.TestCase):
             total_count(load("ecos_error.json"))
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 class TestKeyConfig(unittest.TestCase):
@@ -68,3 +66,7 @@ class TestKeyConfig(unittest.TestCase):
         finally:
             os.environ.pop("ECOS_KEY", None)
             importlib.reload(indicators)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

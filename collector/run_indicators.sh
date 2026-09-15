@@ -2,10 +2,28 @@
 # ECOS 거시·부동산 지표 수집. 월간 자료라 주 1회면 충분하다.
 # 시세(run.sh)와 분리해 샘플키를 하루 두 번 두드리지 않게 한다.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+HERE="$(cd "$(dirname "$0")" && pwd)"
+cd "$HERE/.."
 
-# 키는 공개 저장소 밖에 둔다. 없으면 샘플키로 동작한다.
+# 웹훅 URL 은 공개 저장소 밖(~/.mydash_env)에서만 온다.
 [ -f "$HOME/.mydash_env" ] && . "$HOME/.mydash_env"
+export DISCORD_WEBHOOK="${DISCORD_WEBHOOK:-}"
+
+# 스크립트가 중간에 죽으면(대개 git push 실패) 조용히 끝난다 — 두 번 겪었다.
+# 종료 코드가 0이 아니면 알린다. push 는 막히면 데이터가 아예 안 올라가므로 한 번만 실패해도 알린다.
+fail_line=""
+on_exit() {
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    python3 "$HERE/notify.py" --job "지표 반영" \
+      --failed "${fail_line:-종료코드 $rc}" --threshold 1 || true
+  else
+    python3 "$HERE/notify.py" --job "지표 반영" --threshold 1 || true
+  fi
+}
+trap on_exit EXIT
+
+# ECOS 키도 같은 파일(~/.mydash_env)에서 온다. 없으면 샘플키로 동작한다.
 
 git pull --ff-only --quiet origin main
 
@@ -23,5 +41,11 @@ if git diff --cached --quiet; then
 fi
 git -c user.name="mydash-collector" -c user.email="mydash-bot@users.noreply.github.com" \
     commit -q -m "chore: 지표 갱신 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')"
+fail_line="git push"
 git push -q origin main
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  fail_line="push 후 origin/main 불일치"
+  exit 1
+fi
+fail_line=""
 echo "push 완료"

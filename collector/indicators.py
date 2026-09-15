@@ -11,6 +11,7 @@ import os
 import sys
 
 from collect import db_connect, fetch_json, REPO, KST
+import notify
 from sources.ecos import SERIES, parse_series, total_count, EcosError
 
 # ⚠️ 이 저장소는 공개다. 키를 소스에 적으면 그대로 공개된다.
@@ -53,6 +54,7 @@ def main():
         series TEXT, date TEXT, value REAL, PRIMARY KEY (series, date))""")
 
     meta = {}
+    failed = []          # 조회 자체가 실패한 계열. "새 자료 없음"은 실패가 아니다
     for name, stat, cycle, item, label, unit in SERIES:
         meta[name] = {"label": label, "unit": unit, "stat": stat}
         # 이미 있는 마지막 시점부터만 받는다 (매일 전 구간을 다시 받지 않는다)
@@ -64,9 +66,11 @@ def main():
         try:
             rows = fetch_all(stat, cycle, item, start, end)
         except EcosError as e:
+            failed.append(name)
             print(f"  ✗ {name:<16} {e}")
             continue
         except Exception as e:
+            failed.append(name)
             print(f"  ✗ {name:<16} {type(e).__name__}: {e}")
             continue
         if not rows:
@@ -89,6 +93,7 @@ def main():
     n = sum(len(v) for v in out["series"].values())
     con.close()
     print(f"\n지표 {len(out['series'])}종 {n:,}건 → {OUT.relative_to(REPO)}")
+    notify.report("지표 수집", failed, len(SERIES))
     return 0
 
 

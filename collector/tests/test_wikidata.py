@@ -64,8 +64,6 @@ class TestParseElections(unittest.TestCase):
         self.assertTrue(any(e["date"] >= "2028-01-01" for e in self.got))
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 WARS = json.loads((FIX / "wikidata_wars.json").read_text(encoding="utf-8"))
@@ -104,3 +102,7 @@ class TestParseWars(unittest.TestCase):
         strict = parse_wars(WARS, min_sitelinks=100)
         self.assertLess(len(strict), len(self.got))
         self.assertTrue(all(w["sitelinks"] >= 100 for w in strict))
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
