@@ -114,13 +114,26 @@ WEBHOOK_RE = re.compile(
     r"^https://(?:discord|discordapp)\.com/api/webhooks/\d+/[A-Za-z0-9_-]+$")
 
 
+# 붙여넣기 표시문자(bracketed paste). 터미널에 따라 ESC 가 살아 있기도, 먹히기도 한다.
+PASTE_RE = re.compile(r"(?:\x1b)?\[20[01]~")
+
+
+def clean_input(raw):
+    """사람이 붙여넣은 값에서 터미널 찌꺼기를 걷어낸다.
+
+    VPS 셸이 붙여넣기 표시문자를 그대로 흘려서 값 앞뒤에 `[200~`·`[201~` 가
+    들어오는 것을 실제로 겪었다. 화면에는 URL 만 보이는데 값은 오염돼 있다.
+    """
+    return PASTE_RE.sub("", (raw or "")).strip().strip("\"'")
+
+
 def valid_webhook(url):
     """디스코드 웹훅 URL 인지. 붙여넣기 사고를 저장 전에 막는다.
 
     입력이 보이지 않는 프롬프트에 시험 명령을 붙여넣어 그 명령문이 URL 로
     저장된 적이 있다. 형식 검사가 있었으면 그 자리에서 걸렸다.
     """
-    return bool(WEBHOOK_RE.match((url or "").strip()))
+    return bool(WEBHOOK_RE.match(clean_input(url)))
 
 
 def upsert_env(text, key, value):
@@ -146,7 +159,7 @@ def set_webhook(env_path, prompt=input):
     다음 장애 때 알림이 조용히 실패한다.
     """
     try:
-        url = (prompt("디스코드 웹훅 URL 을 붙여넣고 엔터: ") or "").strip()
+        url = clean_input(prompt("디스코드 웹훅 URL 을 붙여넣고 엔터: "))
     except (EOFError, KeyboardInterrupt):
         print("\n입력을 받지 못했습니다 — 아무것도 바꾸지 않았습니다.")
         return 1

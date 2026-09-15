@@ -373,5 +373,50 @@ class TestSetWebhook(unittest.TestCase):
                                  'export ECOS_KEY="abc"\n')
 
 
+class TestPasteMarkers(unittest.TestCase):
+    """붙여넣기 표시문자(bracketed paste)를 흘리는 터미널이 있다.
+
+    실제로 겪음: VPS 셸에 붙여넣으면 앞에 `[200~`, 뒤에 `[201~` 가 그대로 들어온다.
+    사람 눈에는 URL 만 보이는데 값은 오염돼 있다.
+    """
+
+    GOOD = ("https://discord.com/api/webhooks/1234567890123456789/"
+            "aBcD-efGh_ijKlMnOpQrStUvWxYz0123456789aBcDeFgHiJkLmNoPqRsTuVwXyZ01")
+
+    def test_ESC_가_살아있는_형태를_받는다(self):
+        from notify import valid_webhook
+        self.assertTrue(valid_webhook("\x1b[200~" + self.GOOD + "\x1b[201~"))
+
+    def test_ESC_가_먹힌_형태도_받는다(self):
+        # 터미널이 ESC 만 삼키면 화면·값에 `[200~` 라는 글자가 남는다.
+        from notify import valid_webhook
+        self.assertTrue(valid_webhook("[200~" + self.GOOD + "[201~"))
+
+    def test_앞쪽만_붙어도_받는다(self):
+        from notify import valid_webhook
+        self.assertTrue(valid_webhook("[200~" + self.GOOD))
+
+    def test_저장될_때는_표시문자가_빠진다(self):
+        import tempfile
+        import notify
+        with tempfile.TemporaryDirectory() as d:
+            env = pathlib.Path(d) / ".mydash_env"
+            env.write_text('export ECOS_KEY="abc"\n', encoding="utf-8")
+            orig, sent = notify.post, []
+            notify.post = lambda text, webhook=None: (sent.append(webhook), True)[1]
+            try:
+                notify.set_webhook(str(env), prompt=lambda _: "[200~" + self.GOOD + "[201~")
+            finally:
+                notify.post = orig
+            body = env.read_text(encoding="utf-8")
+        self.assertIn(f'export DISCORD_WEBHOOK="{self.GOOD}"', body)
+        self.assertNotIn("200~", body)
+        self.assertEqual(sent[0], self.GOOD, "발송도 깨끗한 값으로 해야 한다")
+
+    def test_표시문자를_벗겨도_명령문은_여전히_거부한다(self):
+        from notify import valid_webhook
+        self.assertFalse(valid_webhook("[200~. ~/.mydash_env && python3 notify.py --test[201~"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
