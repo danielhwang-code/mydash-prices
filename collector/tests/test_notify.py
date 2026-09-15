@@ -360,6 +360,18 @@ class TestSetWebhook(unittest.TestCase):
         self.run_with("  " + self.GOOD + "  ")
         self.assertIn(f'"{self.GOOD}"', self.env.read_text(encoding="utf-8"))
 
+    def test_입력을_중단해도_트레이스백을_내지_않는다(self):
+        # Ctrl+C 나 파이프 입력으로 흔히 일어난다.
+        for exc in (EOFError, KeyboardInterrupt):
+            with self.subTest(exc=exc):
+                def boom(_):
+                    raise exc()
+                import notify
+                rc = notify.set_webhook(str(self.env), prompt=boom)
+                self.assertNotEqual(rc, 0)
+                self.assertEqual(self.env.read_text(encoding="utf-8"),
+                                 'export ECOS_KEY="abc"\n')
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

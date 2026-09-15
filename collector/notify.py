@@ -145,7 +145,11 @@ def set_webhook(env_path, prompt=input):
     검증에 걸리면 파일을 건드리지 않는다 — 잘못된 값이 들어가면
     다음 장애 때 알림이 조용히 실패한다.
     """
-    url = (prompt("디스코드 웹훅 URL 을 붙여넣고 엔터: ") or "").strip()
+    try:
+        url = (prompt("디스코드 웹훅 URL 을 붙여넣고 엔터: ") or "").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n입력을 받지 못했습니다 — 아무것도 바꾸지 않았습니다.")
+        return 1
     if not valid_webhook(url):
         shown = url[:32] + ("…" if len(url) > 32 else "")
         print("디스코드 웹훅 URL 형식이 아닙니다 — 저장하지 않았습니다.")
